@@ -4,7 +4,7 @@ metadata:
   name: backend
   namespace: agenda-crud
 spec:
-  replicas: 2 # Múltiples réplicas para demostrar escalabilidad
+  replicas: 2
   selector:
     matchLabels:
       app: backend
@@ -16,7 +16,7 @@ spec:
       containers:
       - name: backend
         image: agenda-backend:latest
-        imagePullPolicy: Never  # Usa imagen local construida en EC2
+        imagePullPolicy: Never
           ports:
             - containerPort: 3000
           envFrom:

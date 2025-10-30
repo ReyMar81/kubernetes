@@ -16,7 +16,7 @@ spec:
       containers:
       - name: frontend
         image: agenda-frontend:latest
-        imagePullPolicy: Never  # Usa imagen local construida en EC2
+        imagePullPolicy: Never  
           ports:
             - containerPort: 80
           resources:
@@ -38,5 +38,5 @@ spec:
   ports:
     - port: 80
       targetPort: 80
-      nodePort: 30080 # Puerto accesible externamente en EC2
+      nodePort: 30080 
   type: NodePort

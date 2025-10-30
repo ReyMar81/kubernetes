@@ -1,69 +1,234 @@
 # Despliegue en Kubernetes (EC2)
 
-## Pasos para desplegar:
+Este proyecto implementa **Kubernetes (K3s)** en AWS EC2 para demostrar escalabilidad, auto-recuperación y orquestación de contenedores en producción.
 
-### 1. En tu EC2, instala K3s (solo una vez):
+## 📋 Requisitos
+
+- Instancia EC2 (t2.micro free tier compatible)
+- Ubuntu Server 22.04 LTS
+- Puertos abiertos: 22 (SSH), 30080 (aplicación)
+- Docker instalado
+- Git instalado
+
+## 🚀 Pasos para desplegar
+
+### 1. Preparar EC2
 
 ```bash
+# Conectar a EC2:
+ssh -i tu-llave.pem ubuntu@<IP-PUBLICA>
+
+# Instalar Docker:
+sudo apt update
+sudo apt install -y docker.io git
+sudo usermod -aG docker ubuntu
+# Cerrar sesión y reconectar para aplicar permisos
+```
+
+### 2. Clonar el proyecto
+
+```bash
+git clone https://github.com/ReyMar81/kubernetes.git
+cd kubernetes/agenda-crud
+```
+
+### 3. Instalar K3s (solo una vez)
+
+```bash
+# Instalar K3s (Kubernetes ligero):
 curl -sfL https://get.k3s.io | sh -
-sudo chmod 644 /etc/rancher/k3s/k3s.yaml
+
+# Configurar acceso (necesario para cada sesión):
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+
+# Verificar instalación:
+sudo -E kubectl get nodes
 ```
 
-### 2. Construye las imágenes Docker:
+### 4. Construir imágenes Docker
 
 ```bash
-cd agenda-crud
-docker build -t agenda-backend:latest ./backend
-docker build -t agenda-frontend:latest ./frontend
+# Construir backend:
+docker build -t agenda-backend:latest -f docker/backend.Dockerfile ./backend
+
+# Construir frontend:
+docker build -t agenda-frontend:latest -f docker/frontend.Dockerfile ./frontend
+
+# Verificar imágenes:
+docker images | grep agenda
 ```
 
-### 3. Despliega en Kubernetes:
+### 5. Desplegar en Kubernetes
 
 ```bash
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/configmaps.yaml
-kubectl apply -f k8s/postgres-pvc.yaml
-kubectl apply -f k8s/postgres-deployment.yaml
+# Crear namespace y configuración:
+sudo -E kubectl apply -f k8s/namespace.yaml
+sudo -E kubectl apply -f k8s/configmaps.yaml
 
-# Espera ~30 segundos a que postgres esté listo
-kubectl wait --for=condition=ready pod -l app=postgres -n agenda-crud --timeout=60s
+# Desplegar PostgreSQL:
+sudo -E kubectl apply -f k8s/postgres-pvc.yaml
+sudo -E kubectl apply -f k8s/postgres-deployment.yaml
 
-# Inicializa la base de datos
-bash k8s/init-db.sh
+# Esperar a que postgres esté listo (~30-60 segundos):
+sudo -E kubectl wait --for=condition=ready pod -l app=postgres -n agenda-crud --timeout=120s
 
-# Despliega backend y frontend
-kubectl apply -f k8s/backend-deployment.yaml
-kubectl apply -f k8s/frontend-deployment.yaml
+# Inicializar base de datos:
+sudo -E bash k8s/init-db.sh
+
+# Desplegar backend y frontend:
+sudo -E kubectl apply -f k8s/backend-deployment.yaml
+sudo -E kubectl apply -f k8s/frontend-deployment.yaml
 ```
 
-### 4. Verifica que todo esté corriendo:
+### 6. Verificar despliegue
 
 ```bash
-kubectl get pods -n agenda-crud
+# Ver todos los pods (deberías ver 5 pods):
+sudo -E kubectl get pods -n agenda-crud
+
+# Debería mostrar:
+# - postgres-0 (1 pod)
+# - backend-xxxxxx (2 réplicas)
+# - frontend-xxxxxx (2 réplicas)
+
+# Ver servicios:
+sudo -E kubectl get svc -n agenda-crud
 ```
 
-### 5. Accede a tu aplicación:
+### 7. Acceder a la aplicación
 
 ```
-http://<IP-DE-TU-EC2>:30080
+http://<IP-PUBLICA-EC2>:30080
 ```
 
-## Para escalar (cambiar número de réplicas):
+Si configuraste un dominio con DuckDNS y HTTPS, accede por:
+
+```
+https://tu-dominio.duckdns.org
+```
+
+## 🎯 Demostrar Kubernetes en acción
+
+### Escalabilidad horizontal
 
 ```bash
-# Más backends:
-kubectl scale deployment backend -n agenda-crud --replicas=5
+# Escalar backend a 5 réplicas:
+sudo -E kubectl scale deployment backend -n agenda-crud --replicas=5
 
-# Más frontends:
-kubectl scale deployment frontend -n agenda-crud --replicas=3
+# Escalar frontend a 3 réplicas:
+sudo -E kubectl scale deployment frontend -n agenda-crud --replicas=3
 
-# Ver estado:
-kubectl get pods -n agenda-crud
+# Ver cambios en tiempo real:
+sudo -E kubectl get pods -n agenda-crud -w
 ```
 
-## Para eliminar todo:
+### Auto-recuperación (self-healing)
 
 ```bash
-kubectl delete namespace agenda-crud
+# Eliminar un pod manualmente:
+sudo -E kubectl delete pod <nombre-pod-backend> -n agenda-crud
+
+# Kubernetes lo recrea automáticamente en segundos:
+sudo -E kubectl get pods -n agenda-crud -w
 ```
+
+### Ver logs en tiempo real
+
+```bash
+# Logs de todos los backends:
+sudo -E kubectl logs -f -l app=backend -n agenda-crud
+
+# Logs de un pod específico:
+sudo -E kubectl logs -f <nombre-pod> -n agenda-crud
+```
+
+### Rolling updates (actualizaciones sin downtime)
+
+```bash
+# Después de cambiar código y reconstruir imagen:
+docker build -t agenda-backend:latest -f docker/backend.Dockerfile ./backend
+
+# Forzar actualización de pods:
+sudo -E kubectl rollout restart deployment backend -n agenda-crud
+
+# Ver progreso:
+sudo -E kubectl rollout status deployment backend -n agenda-crud
+```
+
+## 🧹 Limpieza
+
+```bash
+# Eliminar toda la aplicación (mantiene K3s):
+sudo -E kubectl delete namespace agenda-crud
+
+# Desinstalar K3s completamente:
+/usr/local/bin/k3s-uninstall.sh
+```
+
+## 📊 Recursos desplegados
+
+| Recurso             | Tipo             | Réplicas | Propósito                                               |
+| ------------------- | ---------------- | -------- | ------------------------------------------------------- |
+| `postgres-0`        | StatefulSet      | 1        | Base de datos PostgreSQL con almacenamiento persistente |
+| `backend`           | Deployment       | 2        | API REST con balanceo de carga automático               |
+| `frontend`          | Deployment       | 2        | Aplicación React servida por Nginx                      |
+| `backend` (service) | ClusterIP        | -        | Servicio interno para backend                           |
+| `frontend-service`  | NodePort (30080) | -        | Servicio público para acceso externo                    |
+| `postgres-data`     | PVC              | 5GB      | Volumen persistente para datos PostgreSQL               |
+
+## ⚠️ Troubleshooting
+
+### Error: "TLS handshake timeout"
+
+```bash
+# Asegúrate de usar sudo -E:
+export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+sudo -E kubectl get nodes
+```
+
+### Pods en estado "Pending"
+
+```bash
+# Ver detalles del pod:
+sudo -E kubectl describe pod <nombre-pod> -n agenda-crud
+
+# Verificar recursos de la instancia:
+free -h
+```
+
+### Frontend no carga o da error 404
+
+```bash
+# Verificar que el servicio esté en NodePort 30080:
+sudo -E kubectl get svc frontend-service -n agenda-crud
+
+# Verificar Security Group de EC2 permita puerto 30080
+```
+
+### Base de datos no inicializa
+
+```bash
+# Verificar logs de postgres:
+sudo -E kubectl logs postgres-0 -n agenda-crud
+
+# Ejecutar init-db.sh manualmente:
+sudo -E bash k8s/init-db.sh
+```
+
+## 💡 Diferencias vs Docker Compose
+
+Con Docker Compose (desarrollo local):
+
+- ✅ Fácil de configurar
+- ❌ Sin escalabilidad automática
+- ❌ Sin auto-recuperación
+- ❌ Un solo servidor
+
+Con Kubernetes (producción):
+
+- ✅ Escalabilidad horizontal automática
+- ✅ Auto-recuperación de pods caídos
+- ✅ Balanceo de carga integrado
+- ✅ Rolling updates sin downtime
+- ✅ Preparado para multi-servidor
+- ⚠️ Mayor complejidad inicial
