@@ -5,4 +5,4 @@ export const friendSchema = Joi.object({
   email: Joi.string().email().required(),
   phone: Joi.string().allow(null, '').max(50),
   notes: Joi.string().allow(null, '').max(2000),
-});
+}).unknown(true); // Permite campos adicionales como id, created_at, etc.
