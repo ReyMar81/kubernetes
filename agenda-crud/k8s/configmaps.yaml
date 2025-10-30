@@ -9,7 +9,6 @@ data:
   DB_NAME: agenda
   DB_USER: agenda
   DB_SSLMODE: disable
-
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -17,4 +16,6 @@ metadata:
   name: frontend-config
   namespace: agenda-crud
 data:
-  API_BASE_URL: http://backend:3000
+  # Nota: En producción con Ingress, el frontend hace llamadas a /api/
+  # Esta variable solo se usa si VITE_API_BASE está configurada en build time
+  API_BASE_URL: /api

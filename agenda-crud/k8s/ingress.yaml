@@ -4,19 +4,25 @@ metadata:
   name: agenda-ingress
   namespace: agenda-crud
   annotations:
-    kubernetes.io/ingress.class: traefik
-    cert-manager.io/cluster-issuer: letsencrypt-http01
+    kubernetes.io/ingress.class: traefik # K3s usa Traefik como Ingress Controller
+    cert-manager.io/cluster-issuer: letsencrypt-http01 # Para certificados SSL automáticos
 spec:
   tls:
-    - hosts: [your-subdomain.duckdns.org]
-      secretName: agenda-tls
+    - hosts: [tu-dominio.duckdns.org] # ⚠️ CAMBIAR por tu dominio real (ejemplo: agenda-app.duckdns.org)
+      secretName: agenda-tls # Secret donde se guardará el certificado SSL
   rules:
-    - host: your-subdomain.duckdns.org
+    - host: tu-dominio.duckdns.org # ⚠️ CAMBIAR por tu dominio real
       http:
         paths:
-          - path: /
+          - path: /api # Todas las llamadas a /api/* se enrutan al backend
             pathType: Prefix
             backend:
               service:
-                name: frontend
+                name: backend # Service 'backend' en puerto 3000
+                port: { number: 3000 }
+          - path: / # Todas las demás llamadas se enrutan al frontend
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend # Service 'frontend' en puerto 80
                 port: { number: 80 }

@@ -2,23 +2,32 @@
 set -euo pipefail
 
 NS=agenda-crud
-export KUBECONFIG=${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}
+: "${KUBECONFIG:=/etc/rancher/k3s/k3s.yaml}"
 
-# Espera a que Postgres esté listo
 echo "Esperando a Postgres..."
-kubectl -n "$NS" rollout status statefulset/postgres --timeout=120s
+kubectl -n "$NS" rollout status statefulset/postgres --timeout=180s
 
-# Ejecuta el SQL usando label selector (no nombre de pod)
 PG_POD=$(kubectl -n "$NS" get pod -l app=postgres -o jsonpath='{.items[0].metadata.name}')
+echo "Usando pod: $PG_POD"
+
 kubectl -n "$NS" exec -i "$PG_POD" -- bash -lc '
-  export PGPASSWORD="${POSTGRES_PASSWORD}";
+  set -euo pipefail
+  export PGPASSWORD="${POSTGRES_PASSWORD}"
+  for i in {1..30}; do
+    if pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" -h 127.0.0.1 -p 5432; then
+      break
+    fi
+    sleep 2
+  done
   psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -h 127.0.0.1 -p 5432 <<SQL
--- crea tablas si no existen...
-CREATE TABLE IF NOT EXISTS contactos (
+CREATE TABLE IF NOT EXISTS friends (
   id SERIAL PRIMARY KEY,
-  nombre TEXT NOT NULL,
-  telefono TEXT,
-  email TEXT
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  phone VARCHAR(50),
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
 );
 SQL
 '
