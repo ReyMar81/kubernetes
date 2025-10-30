@@ -1,10 +1,40 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: agenda-crud
+labels:
+  app: postgres
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: postgres
+  clusterIP: None # headless para StatefulSet (hostname estable)
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-clusterip
+  namespace: agenda-crud
+labels:
+  app: postgres
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: postgres
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: postgres
   namespace: agenda-crud
 spec:
-  serviceName: postgres-service
+  serviceName: postgres
   replicas: 1
   selector:
     matchLabels:
@@ -14,41 +44,55 @@ spec:
       labels:
         app: postgres
     spec:
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        role: db
       containers:
         - name: postgres
-          image: postgres:15-alpine
+          image: postgres:16
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                { configMapKeyRef: { name: backend-config, key: DB_NAME } }
+            - name: POSTGRES_USER
+              valueFrom:
+                { configMapKeyRef: { name: backend-config, key: DB_USER } }
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                { secretKeyRef: { name: backend-secret, key: DB_PASSWORD } }
           ports:
             - containerPort: 5432
-              name: postgres
-          envFrom:
-            - configMapRef:
-                name: postgres-config
-            - secretRef:
-                name: postgres-secret
           volumeMounts:
-            - name: postgres-storage
+            - name: data
               mountPath: /var/lib/postgresql/data
           resources:
             requests:
+              cpu: "80m"
               memory: "256Mi"
-              cpu: "250m"
             limits:
+              cpu: "200m"
               memory: "512Mi"
-              cpu: "500m"
-      volumes:
-        - name: postgres-storage
-          persistentVolumeClaim:
-            claimName: postgres-pvc
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres-service
-  namespace: agenda-crud
-spec:
-  selector:
-    app: postgres
-  ports:
-    - port: 5432
-      targetPort: 5432
-  clusterIP: None
+          livenessProbe:
+            tcpSocket: { port: 5432 }
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            exec:
+              command:
+                [
+                  "bash",
+                  "-c",
+                  "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -h 127.0.0.1 -p 5432",
+                ]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 5Gi

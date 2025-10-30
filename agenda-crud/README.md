@@ -1,6 +1,6 @@
 # agenda-crud
 
-Proyecto full-stack educativo que demuestra **orquestación de contenedores** con Docker Compose (desarrollo) y **Kubernetes en producción** (AWS EC2). 
+Proyecto full-stack educativo que demuestra **orquestación de contenedores** con Docker Compose (desarrollo) y **Kubernetes en producción** (AWS EC2).
 
 Implementa un CRUD completo de gestión de amigos con React + Vite, Node.js + Express y PostgreSQL, desplegado en contenedores Docker y orquestado con Kubernetes para demostrar escalabilidad, alta disponibilidad y auto-recuperación.
 
@@ -94,15 +94,15 @@ Despliegue escalable y resiliente en Kubernetes usando K3s en una instancia EC2 
 
 ### Ventajas sobre Docker Compose
 
-| Característica | Docker Compose | Kubernetes (K3s) |
-|----------------|----------------|------------------|
-| **Escalabilidad** | ❌ Manual (1 contenedor por servicio) | ✅ Automática (N réplicas configurables) |
-| **Auto-recuperación** | ❌ Si un contenedor muere, queda caído | ✅ Recrea pods automáticamente |
-| **Load Balancing** | ❌ Básico entre contenedores | ✅ Distribuye tráfico entre réplicas |
-| **Rolling Updates** | ❌ Requiere downtime | ✅ Sin downtime (actualización progresiva) |
-| **Multi-servidor** | ❌ Un solo host | ✅ Cluster de múltiples nodos |
-| **Health Checks** | ⚠️ Básico | ✅ Liveness y readiness probes |
-| **Uso recomendado** | Desarrollo local | Producción |
+| Característica        | Docker Compose                         | Kubernetes (K3s)                           |
+| --------------------- | -------------------------------------- | ------------------------------------------ |
+| **Escalabilidad**     | ❌ Manual (1 contenedor por servicio)  | ✅ Automática (N réplicas configurables)   |
+| **Auto-recuperación** | ❌ Si un contenedor muere, queda caído | ✅ Recrea pods automáticamente             |
+| **Load Balancing**    | ❌ Básico entre contenedores           | ✅ Distribuye tráfico entre réplicas       |
+| **Rolling Updates**   | ❌ Requiere downtime                   | ✅ Sin downtime (actualización progresiva) |
+| **Multi-servidor**    | ❌ Un solo host                        | ✅ Cluster de múltiples nodos              |
+| **Health Checks**     | ⚠️ Básico                              | ✅ Liveness y readiness probes             |
+| **Uso recomendado**   | Desarrollo local                       | Producción                                 |
 
 ### Arquitectura implementada
 
@@ -166,7 +166,8 @@ sudo -E kubectl apply -f k8s/frontend-deployment.yaml
 sudo -E kubectl get pods -n agenda-crud
 ```
 
-**URL de acceso**: 
+**URL de acceso**:
+
 - Sin HTTPS: `http://<EC2_PUBLIC_IP>:30080`
 - Con HTTPS: `https://<tu-dominio>.duckdns.org`
 
@@ -174,20 +175,20 @@ sudo -E kubectl get pods -n agenda-crud
 
 ## 📊 Comparación: Docker Compose vs Kubernetes
 
-| Característica | Docker Compose | Kubernetes (K3s) |
-|----------------|----------------|------------------|
-| **Uso recomendado** | Desarrollo local | Producción |
-| **Configuración** | 1 archivo YAML | 6 archivos YAML (manifiestos) |
-| **Escalabilidad** | ❌ Manual, 1 contenedor/servicio | ✅ `replicas: N` automático |
-| **Alta disponibilidad** | ❌ No, single point of failure | ✅ Múltiples réplicas + load balancer |
-| **Auto-recuperación** | ❌ Si muere, queda caído | ✅ Self-healing automático |
-| **Load balancing** | ⚠️ Básico (round-robin DNS) | ✅ Service discovery + balanceo avanzado |
-| **Rolling updates** | ❌ Requiere `docker-compose down/up` | ✅ `rollout restart` sin downtime |
-| **Health checks** | ⚠️ `healthcheck` básico | ✅ Liveness + readiness probes |
-| **Storage persistente** | ✅ Volumes locales | ✅ PersistentVolumeClaims (PVC) |
-| **Multi-servidor** | ❌ Solo local/single-host | ✅ Cluster de múltiples nodos |
-| **Complejidad** | 🟢 Baja | 🟡 Media |
-| **Curva de aprendizaje** | 🟢 Fácil | 🟡 Moderada |
+| Característica           | Docker Compose                       | Kubernetes (K3s)                         |
+| ------------------------ | ------------------------------------ | ---------------------------------------- |
+| **Uso recomendado**      | Desarrollo local                     | Producción                               |
+| **Configuración**        | 1 archivo YAML                       | 6 archivos YAML (manifiestos)            |
+| **Escalabilidad**        | ❌ Manual, 1 contenedor/servicio     | ✅ `replicas: N` automático              |
+| **Alta disponibilidad**  | ❌ No, single point of failure       | ✅ Múltiples réplicas + load balancer    |
+| **Auto-recuperación**    | ❌ Si muere, queda caído             | ✅ Self-healing automático               |
+| **Load balancing**       | ⚠️ Básico (round-robin DNS)          | ✅ Service discovery + balanceo avanzado |
+| **Rolling updates**      | ❌ Requiere `docker-compose down/up` | ✅ `rollout restart` sin downtime        |
+| **Health checks**        | ⚠️ `healthcheck` básico              | ✅ Liveness + readiness probes           |
+| **Storage persistente**  | ✅ Volumes locales                   | ✅ PersistentVolumeClaims (PVC)          |
+| **Multi-servidor**       | ❌ Solo local/single-host            | ✅ Cluster de múltiples nodos            |
+| **Complejidad**          | 🟢 Baja                              | 🟡 Media                                 |
+| **Curva de aprendizaje** | 🟢 Fácil                             | 🟡 Moderada                              |
 
 **¿Cuándo usar cada uno?**
 
@@ -311,6 +312,7 @@ cd k8s && ./cleanup.sh
 ### Kubernetes (K3s)
 
 **Recursos básicos**:
+
 - ✅ **Namespaces**: Aislamiento lógico de recursos
 - ✅ **Deployments**: Gestión declarativa de aplicaciones stateless
 - ✅ **StatefulSets**: Para bases de datos con identidad de red estable
@@ -319,6 +321,7 @@ cd k8s && ./cleanup.sh
 - ✅ **PersistentVolumeClaims**: Almacenamiento persistente
 
 **Características avanzadas**:
+
 - ✅ **Escalabilidad horizontal**: `kubectl scale deployment backend --replicas=5`
 - ✅ **Self-healing**: Recrea pods automáticamente si fallan
 - ✅ **Load balancing**: Distribuye tráfico entre réplicas con Services
@@ -348,7 +351,7 @@ cd k8s && ./cleanup.sh
 
 - **Imágenes locales**: Se construyen en EC2 con `imagePullPolicy: Never` (no requiere Docker Hub)
 - **Inicialización DB**: Script `init-db.sh` ejecuta SQL vía `kubectl exec` en pod postgres
-- **Networking**: 
+- **Networking**:
   - Backend accesible como `backend:3000` (DNS interno de Kubernetes)
   - Frontend expuesto en `NodePort 30080` para acceso externo
 - **Storage**: K3s usa `local-path` provisioner (almacenamiento en disco del nodo)

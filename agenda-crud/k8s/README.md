@@ -61,12 +61,14 @@ docker images | grep agenda
 ### 5. Desplegar en Kubernetes
 
 ```bash
+# Etiquetar nodo para PostgreSQL (opcional pero recomendado):
+sudo -E kubectl label nodes --all role=db
+
 # Crear namespace y configuración:
 sudo -E kubectl apply -f k8s/namespace.yaml
 sudo -E kubectl apply -f k8s/configmaps.yaml
 
-# Desplegar PostgreSQL:
-sudo -E kubectl apply -f k8s/postgres-pvc.yaml
+# Desplegar PostgreSQL (StatefulSet con volumeClaimTemplates):
 sudo -E kubectl apply -f k8s/postgres-deployment.yaml
 
 # Esperar a que postgres esté listo (~30-60 segundos):
@@ -83,16 +85,19 @@ sudo -E kubectl apply -f k8s/frontend-deployment.yaml
 ### 6. Verificar despliegue
 
 ```bash
-# Ver todos los pods (deberías ver 5 pods):
+# Ver todos los pods (deberías ver 4 pods):
 sudo -E kubectl get pods -n agenda-crud
 
 # Debería mostrar:
-# - postgres-0 (1 pod)
+# - postgres-0 (1 pod StatefulSet)
 # - backend-xxxxxx (2 réplicas)
-# - frontend-xxxxxx (2 réplicas)
+# - frontend-xxxxxx (1 réplica)
 
 # Ver servicios:
 sudo -E kubectl get svc -n agenda-crud
+
+# Ver PersistentVolumeClaims:
+sudo -E kubectl get pvc -n agenda-crud
 ```
 
 ### 7. Acceder a la aplicación
@@ -112,15 +117,17 @@ https://tu-dominio.duckdns.org
 ### Escalabilidad horizontal
 
 ```bash
-# Escalar backend a 5 réplicas:
-sudo -E kubectl scale deployment backend -n agenda-crud --replicas=5
+# Escalar backend a 3 réplicas:
+sudo -E kubectl scale deployment backend -n agenda-crud --replicas=3
 
-# Escalar frontend a 3 réplicas:
-sudo -E kubectl scale deployment frontend -n agenda-crud --replicas=3
+# Volver a escalar frontend a 2 réplicas:
+sudo -E kubectl scale deployment frontend -n agenda-crud --replicas=2
 
 # Ver cambios en tiempo real:
 sudo -E kubectl get pods -n agenda-crud -w
 ```
+
+**Nota**: En t2.micro (1 vCPU, 1GB RAM), mantén réplicas conservadoras para evitar falta de recursos.
 
 ### Auto-recuperación (self-healing)
 
@@ -167,14 +174,20 @@ sudo -E kubectl delete namespace agenda-crud
 
 ## 📊 Recursos desplegados
 
-| Recurso             | Tipo             | Réplicas | Propósito                                               |
-| ------------------- | ---------------- | -------- | ------------------------------------------------------- |
-| `postgres-0`        | StatefulSet      | 1        | Base de datos PostgreSQL con almacenamiento persistente |
-| `backend`           | Deployment       | 2        | API REST con balanceo de carga automático               |
-| `frontend`          | Deployment       | 2        | Aplicación React servida por Nginx                      |
-| `backend` (service) | ClusterIP        | -        | Servicio interno para backend                           |
-| `frontend-service`  | NodePort (30080) | -        | Servicio público para acceso externo                    |
-| `postgres-data`     | PVC              | 5GB      | Volumen persistente para datos PostgreSQL               |
+| Recurso                    | Tipo             | Réplicas | Recursos (requests/limits)      | Propósito                                               |
+| -------------------------- | ---------------- | -------- | ------------------------------- | ------------------------------------------------------- |
+| `postgres-0`               | StatefulSet      | 1        | 80m/256Mi → 200m/512Mi          | Base de datos PostgreSQL con almacenamiento persistente |
+| `backend`                  | Deployment       | 2        | 70m/96Mi → 180m/192Mi           | API REST con balanceo de carga automático               |
+| `frontend`                 | Deployment       | 1        | 40m/48Mi → 120m/96Mi            | Aplicación React servida por Nginx                      |
+| `postgres` (headless)      | Service          | -        | -                               | DNS estable para StatefulSet                            |
+| `postgres-clusterip`       | ClusterIP        | -        | -                               | Acceso interno a PostgreSQL                             |
+| `backend`                  | ClusterIP        | -        | -                               | Servicio interno para backend                           |
+| `frontend`                 | NodePort (30080) | -        | -                               | Servicio público para acceso externo                    |
+| `data-postgres-0`          | PVC              | 5GB      | local-path                      | Volumen persistente para datos PostgreSQL               |
+
+**Total recursos t2.micro (1 vCPU, 1GB RAM):**
+- Requests: ~190m CPU, ~400Mi RAM
+- Limits: ~500m CPU, ~800Mi RAM
 
 ## ⚠️ Troubleshooting
 
@@ -211,8 +224,24 @@ sudo -E kubectl get svc frontend-service -n agenda-crud
 # Verificar logs de postgres:
 sudo -E kubectl logs postgres-0 -n agenda-crud
 
+# Verificar que el nodo tenga la etiqueta role=db:
+sudo -E kubectl get nodes --show-labels | grep role=db
+
+# Si falta la etiqueta, añadirla:
+sudo -E kubectl label nodes --all role=db
+
 # Ejecutar init-db.sh manualmente:
 sudo -E bash k8s/init-db.sh
+```
+
+### PostgreSQL en estado "Pending" con nodeSelector
+
+```bash
+# Verificar que todos los nodos tengan la etiqueta role=db:
+sudo -E kubectl get nodes --show-labels
+
+# Si postgres no puede programarse, etiquetar el nodo:
+sudo -E kubectl label nodes <nombre-nodo> role=db
 ```
 
 ## 💡 Diferencias vs Docker Compose

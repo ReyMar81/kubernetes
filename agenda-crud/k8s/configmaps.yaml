@@ -1,38 +1,20 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: postgres-config
+  name: backend-config
   namespace: agenda-crud
 data:
-  POSTGRES_DB: "agenda"
-  POSTGRES_USER: "postgres"
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres-secret
-  namespace: agenda-crud
-type: Opaque
-stringData:
-  POSTGRES_PASSWORD: "postgres"
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_NAME: agenda
+  DB_USER: agenda
+  DB_SSLMODE: disable
+
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: backend-config
+  name: frontend-config
   namespace: agenda-crud
 data:
-  PORT: "3000"
-  DB_HOST: "postgres-service"
-  DB_PORT: "5432"
-  DB_USER: "postgres"
-  DB_NAME: "agenda"
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: backend-secret
-  namespace: agenda-crud
-type: Opaque
-stringData:
-  DB_PASSWORD: "postgres"
+  API_BASE_URL: http://backend:3000

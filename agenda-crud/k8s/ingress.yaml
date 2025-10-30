@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: agenda-ingress
+  namespace: agenda-crud
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    cert-manager.io/cluster-issuer: letsencrypt-http01
+spec:
+  tls:
+    - hosts: [your-subdomain.duckdns.org]
+      secretName: agenda-tls
+  rules:
+    - host: your-subdomain.duckdns.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port: { number: 80 }
